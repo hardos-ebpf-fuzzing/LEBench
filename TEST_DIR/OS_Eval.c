@@ -199,6 +199,20 @@ typedef struct testInfo {
 	const char *name;
 } testInfo;
 
+
+void to_file(struct timespec *timeArray, int size, const char *name)
+{
+	char filename[300];
+	strcpy(filename, home);
+	strcat(filename, "bench.");
+	strcat(filename, name);
+	FILE *fp = fopen(filename, "w+");
+	for (int i = 0; i < size; i++) {
+		fprintf(fp, "%ld.%09ld ", timeArray[i].tv_sec, timeArray[i].tv_nsec);
+	}
+	fclose(fp);
+}
+
 #define INPRECISION 0.05
 #define K 5
 struct timespec *calc_k_closest(struct timespec *timeArray, int size)
@@ -271,6 +285,7 @@ void one_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec*), testInfo *
 	//	fprintf(fp, "%ld.%09ld %ld\n", timeArray[i].tv_sec, timeArray[i].tv_nsec, timeArray[i].tv_sec * 1000000000 + timeArray[i].tv_nsec);
 	//}
 	struct timespec *kbest = calc_k_closest(timeArray, runs);	
+	to_file(timeArray, runs, info->name);
 
 	if (!isFirstIteration)
 	{
@@ -300,7 +315,7 @@ void one_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec*), testInfo *
 		fprintf(fp, "%10s", info->name);
 		fprintf(fp, "        average:,");
 	}
-	fprintf(fp,"%ld.%09ld,%ld.%09ld\n",average->tv_sec, average->tv_nsec, std->tv_sec, std->tv_nsec);
+	fprintf(fp,"%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld\n",average->tv_sec, average->tv_nsec, std->tv_sec, std->tv_nsec,timeArray[0].tv_sec,timeArray[0].tv_nsec,timeArray[(int)(.25*runs)-1].tv_sec,timeArray[(int)(.25*runs)-1].tv_nsec,timeArray[(int)(.50*runs)-1].tv_sec,timeArray[(int)(.50*runs)-1].tv_nsec,timeArray[(int)(.75*runs)-1].tv_sec,timeArray[(int)(.75*runs)-1].tv_nsec,timeArray[(int)(.95*runs)-1].tv_sec,timeArray[(int)(.95*runs)-1].tv_nsec,timeArray[(int)(.98*runs)-1].tv_sec,timeArray[(int)(.98*runs)-1].tv_nsec,timeArray[(int)(.99*runs)-1].tv_sec,timeArray[(int)(.99*runs)-1].tv_nsec,timeArray[runs-1].tv_sec,timeArray[runs-1].tv_nsec);
 
 	free(sum);
 	free(average);
@@ -342,6 +357,7 @@ void one_line_test_v2(FILE *fp, FILE *copy, void (*f)(struct timespec*, int, int
 	struct timespec *average = calc_average(sum, runs);  
 	struct timespec *std = calc_std(timeArray, average, runs);
 	struct timespec *kbest = calc_k_closest(timeArray, runs);	
+	to_file(timeArray, runs, info->name);
 
 	if (!isFirstIteration)
 	{
@@ -371,7 +387,7 @@ void one_line_test_v2(FILE *fp, FILE *copy, void (*f)(struct timespec*, int, int
 		fprintf(fp, "%10s", info->name);
 		fprintf(fp, "        average:,");
 	}
-	fprintf(fp,"%ld.%09ld,%ld.%09ld\n",average->tv_sec, average->tv_nsec, std->tv_sec, std->tv_nsec);
+	fprintf(fp,"%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld\n",average->tv_sec, average->tv_nsec, std->tv_sec, std->tv_nsec,timeArray[0].tv_sec,timeArray[0].tv_nsec,timeArray[(int)(.25*runs)-1].tv_sec,timeArray[(int)(.25*runs)-1].tv_nsec,timeArray[(int)(.50*runs)-1].tv_sec,timeArray[(int)(.50*runs)-1].tv_nsec,timeArray[(int)(.75*runs)-1].tv_sec,timeArray[(int)(.75*runs)-1].tv_nsec,timeArray[(int)(.95*runs)-1].tv_sec,timeArray[(int)(.95*runs)-1].tv_nsec,timeArray[(int)(.98*runs)-1].tv_sec,timeArray[(int)(.98*runs)-1].tv_nsec,timeArray[(int)(.99*runs)-1].tv_sec,timeArray[(int)(.99*runs)-1].tv_nsec,timeArray[runs-1].tv_sec,timeArray[runs-1].tv_nsec);
 
 	free(sum);
 	free(average);
@@ -423,12 +439,21 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec*,struct times
 	struct timespec **stds = (struct timespec **) malloc(2*sizeof(struct timespec *));
 	stds[0] = stdParent;
 	stds[1] = stdChild;
+	struct timespec **times= (struct timespec **) malloc(2*sizeof(struct timespec *));
+	times[0] = timeArrayParent;
+	times[1] = timeArrayChild;
 
 	struct timespec *kbestParent = calc_k_closest(timeArrayParent, runs);
 	struct timespec *kbestChild = calc_k_closest(timeArrayChild, runs);
 	struct timespec **kbests = (struct timespec **) malloc(2*sizeof(struct timespec *));
 	kbests[0] = kbestParent;
 	kbests[1] = kbestChild;
+
+	to_file(timeArrayParent, runs, info->name);
+	char fname[300];
+	strcpy(fname, info->name);
+	strcat(fname, "child");
+	to_file(timeArrayChild, runs, fname);
 
 	char ch;
 	if(!isFirstIteration)
@@ -451,7 +476,8 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec*,struct times
 					break;
 				fputc(ch,fp);
 			}
-			fprintf(fp,"%ld.%09ld,%ld.%09ld,\n",averages[i]->tv_sec,averages[i]->tv_nsec,stds[i]->tv_sec, stds[i]->tv_nsec);
+			//fprintf(fp,"%ld.%09ld,%ld.%09ld,\n",averages[i]->tv_sec,averages[i]->tv_nsec,stds[i]->tv_sec, stds[i]->tv_nsec);
+			fprintf(fp,"%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld\n",averages[i]->tv_sec, averages[i]->tv_nsec, stds[i]->tv_sec, stds[i]->tv_nsec,times[i][0].tv_sec,times[i][0].tv_nsec,times[i][(int)(.25*runs)-1].tv_sec,times[i][(int)(.25*runs)-1].tv_nsec,times[i][(int)(.50*runs)-1].tv_sec,times[i][(int)(.50*runs)-1].tv_nsec,times[i][(int)(.75*runs)-1].tv_sec,times[i][(int)(.75*runs)-1].tv_nsec,times[i][(int)(.95*runs)-1].tv_sec,times[i][(int)(.95*runs)-1].tv_nsec,times[i][(int)(.98*runs)-1].tv_sec,times[i][(int)(.98*runs)-1].tv_nsec,times[i][(int)(.99*runs)-1].tv_sec,times[i][(int)(.99*runs)-1].tv_nsec,times[i][runs-1].tv_sec,times[i][runs-1].tv_nsec);
 		}
 	}
 	else
@@ -459,12 +485,14 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec*,struct times
 		fprintf(fp, "%10s", info->name);
 		fprintf(fp,"          kbest:,%ld.%09ld,\n",kbests[0]->tv_sec, kbests[0]->tv_nsec);
 		fprintf(fp, "%10s", info->name);
-		fprintf(fp,"       average:,%ld.%09ld,%ld.%09ld,\n",averages[0]->tv_sec, averages[0]->tv_nsec, stds[0]->tv_sec, stds[0]->tv_nsec);
+		//fprintf(fp,"       average:,%ld.%09ld,%ld.%09ld,\n",averages[0]->tv_sec, averages[0]->tv_nsec, stds[0]->tv_sec, stds[0]->tv_nsec);
+		fprintf(fp,"       average:,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld\n",averages[0]->tv_sec, averages[0]->tv_nsec, stds[0]->tv_sec, stds[0]->tv_nsec,times[0][0].tv_sec,times[0][0].tv_nsec,times[0][(int)(.25*runs)-1].tv_sec,times[0][(int)(.25*runs)-1].tv_nsec,times[0][(int)(.50*runs)-1].tv_sec,times[0][(int)(.50*runs)-1].tv_nsec,times[0][(int)(.75*runs)-1].tv_sec,times[0][(int)(.75*runs)-1].tv_nsec,times[0][(int)(.95*runs)-1].tv_sec,times[0][(int)(.95*runs)-1].tv_nsec,times[0][(int)(.98*runs)-1].tv_sec,times[0][(int)(.98*runs)-1].tv_nsec,times[0][(int)(.99*runs)-1].tv_sec,times[0][(int)(.99*runs)-1].tv_nsec,times[0][runs-1].tv_sec,times[0][runs-1].tv_nsec);
 
 		fprintf(fp, "%10s", info->name);
 		fprintf(fp,"    Child kbest:,%ld.%09ld,\n",kbests[1]->tv_sec, kbests[1]->tv_nsec); 
 		fprintf(fp, "%10s", info->name);
-		fprintf(fp," Child average:,%ld.%09ld,%ld.%09ld,\n",averages[1]->tv_sec, averages[1]->tv_nsec, stds[1]->tv_sec, stds[1]->tv_nsec);
+		//fprintf(fp," Child average:,%ld.%09ld,%ld.%09ld,\n",averages[1]->tv_sec, averages[1]->tv_nsec, stds[1]->tv_sec, stds[1]->tv_nsec);
+		fprintf(fp," Child average:,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld,%ld.%09ld\n",averages[1]->tv_sec, averages[1]->tv_nsec, stds[1]->tv_sec, stds[1]->tv_nsec,times[1][0].tv_sec,times[1][0].tv_nsec,times[1][(int)(.25*runs)-1].tv_sec,times[1][(int)(.25*runs)-1].tv_nsec,times[1][(int)(.50*runs)-1].tv_sec,times[1][(int)(.50*runs)-1].tv_nsec,times[1][(int)(.75*runs)-1].tv_sec,times[1][(int)(.75*runs)-1].tv_nsec,times[1][(int)(.95*runs)-1].tv_sec,times[1][(int)(.95*runs)-1].tv_nsec,times[1][(int)(.98*runs)-1].tv_sec,times[1][(int)(.98*runs)-1].tv_nsec,times[1][(int)(.99*runs)-1].tv_sec,times[1][(int)(.99*runs)-1].tv_nsec,times[1][runs-1].tv_sec,times[1][runs-1].tv_nsec);
 	}
 	free(timeArrayChild);
 	free(timeArrayParent);
@@ -477,6 +505,7 @@ void two_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec*,struct times
 	free(averageChild);
 	free(stdParent);
 	free(stdChild);
+	free(times);
 
 	clock_gettime(CLOCK_MONOTONIC,&testEnd);
 	struct timespec *diffTime = calc_diff(&testStart, &testEnd);
