@@ -68,9 +68,71 @@ char *new_output_fn = NULL;
 #define OUTPUT_FN OUTPUT_FILE_PATH "output_file.csv"
 #define NEW_OUTPUT_FN OUTPUT_FILE_PATH "new_output_file.csv"
 #define DEBUG false
-#define BASE_ITER 10000
+#define BASE_ITER 100
+#define PERF_ITER 50
 
 #define PAGE_SIZE 4096
+
+#define PERF_BEGIN(syscall_str, iter)	{\
+	int perf_pid = -1;\
+	if (iter == PERF_ITER)\
+		perf_pid = perf_begin(syscall_str);
+
+#define PERF_END(iter)\
+	if (iter == PERF_ITER) \
+		perf_end(perf_pid);\
+}
+
+/* 
+ * Currently unsupported tests:
+ *   page fault
+ *
+ */
+
+static int perf_begin(const char *syscall_str)
+{
+
+	int pid = getpid();
+	int child = fork();
+	static unsigned long static_cnt = 0;
+	unsigned long cnt = static_cnt++;
+	if (child < 0)
+		asm volatile ("ud2");
+	if (child == 0) {
+		int perf_fd;
+		char pid_str[32] = { 0 };
+		char func[64] = { 0 };
+		char perf_file[64] = { 0 };
+		char *args[] = {"taskset", "-c", "3", "perf", "ftrace", "trace", "-G",
+			func, "-p", pid_str, NULL};
+
+		snprintf(pid_str, sizeof(pid_str), "%d", pid);
+		snprintf(perf_file, sizeof(perf_file), "./perf-%lu-%s.txt", cnt, syscall_str);
+		snprintf(func, sizeof(func), "__x64_sys_%s", syscall_str);
+
+		perf_fd = open(perf_file, O_WRONLY | O_CREAT);
+		if (perf_fd < 0) {
+			perror("open");
+			kill(0, SIGILL);
+		}
+		if (dup2(perf_fd, 1) < 0) {
+			perror("dup2");
+			kill(0, SIGILL);
+		}
+
+		execvp(args[0], args);
+		kill(0, SIGILL);
+	}
+
+	sleep(5);
+	return child;
+}
+
+static void perf_end(int child)
+{
+	sleep(5);
+	kill(child, SIGTERM);
+}
 
 void add_diff_to_sum(struct timespec *result, struct timespec a,
 		     struct timespec b)
@@ -113,21 +175,21 @@ struct timespec *calc_std(struct timespec *array, struct timespec *avg,
 		(struct timespec *)malloc(sizeof(struct timespec));
 	sd->tv_sec = 0;
 	sd->tv_nsec = 0;
-	if (size == 0)
-		return sd;
-
-	int i = 0;
-	long long avg_ns = avg->tv_sec * 1000000000 + avg->tv_nsec;
-	for (i = 0; i < size; i++) {
-		sd->tv_nsec +=
-			pow((array[i].tv_nsec + array[i].tv_sec * 1000000000) -
-				    avg_ns,
-			    2);
-	}
-	sd->tv_nsec = sqrt(sd->tv_nsec / size);
-
-	sd->tv_nsec = sd->tv_nsec % 1000000000;
-	sd->tv_sec = sd->tv_nsec / 1000000000;
+	/* if (size == 0) */
+	/* 	return sd; */
+	/**/
+	/* int i = 0; */
+	/* long long avg_ns = avg->tv_sec * 1000000000 + avg->tv_nsec; */
+	/* for (i = 0; i < size; i++) { */
+	/* 	sd->tv_nsec += */
+	/* 		pow((array[i].tv_nsec + array[i].tv_sec * 1000000000) - */
+	/* 			    avg_ns, */
+	/* 		    2); */
+	/* } */
+	/* sd->tv_nsec = sqrt(sd->tv_nsec / size); */
+	/**/
+	/* sd->tv_nsec = sd->tv_nsec % 1000000000; */
+	/* sd->tv_sec = sd->tv_nsec / 1000000000; */
 	return sd;
 }
 
@@ -279,7 +341,7 @@ struct timespec *calc_k_closest(struct timespec *timeArray, int size)
 	return result;
 }
 
-void one_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec *),
+void one_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec *, int),
 		   testInfo *info)
 {
 	struct timespec testStart, testEnd;
@@ -295,7 +357,7 @@ void one_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec *),
 	for (int i = 0; i < runs; i++) {
 		timeArray[i].tv_sec = 0;
 		timeArray[i].tv_nsec = 0;
-		(*f)(&timeArray[i]);
+		(*f)(&timeArray[i], i);
 	}
 	struct timespec *sum = calc_sum2(timeArray, runs);
 	struct timespec *average = calc_average(sum, runs);
@@ -676,18 +738,20 @@ void threadTest(struct timespec *childTime, struct timespec *parentTime)
 	return;
 }
 
-void getpid_test(struct timespec *diffTime)
+void getpid_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
+	PERF_BEGIN("getpid", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	syscall(SYS_getpid);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
+	PERF_END(iter);
 	add_diff_to_sum(diffTime, endTime, startTime);
 	return;
 }
 
 int file_size = -1;
-void read_test(struct timespec *diffTime)
+void read_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 	char *buf_in = (char *)malloc(sizeof(char) * file_size);
@@ -695,9 +759,11 @@ void read_test(struct timespec *diffTime)
 	int fd = open("test_file.txt", O_RDONLY);
 	if (fd < 0)
 		printf("invalid fd in read: %d\n", fd);
+	PERF_BEGIN("read", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	syscall(SYS_read, fd, buf_in, file_size);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
+	PERF_END(iter);
 	close(fd);
 
 	add_diff_to_sum(diffTime, endTime, startTime);
@@ -734,7 +800,7 @@ void read_warmup()
 	free(buf_in);
 	return;
 }
-void write_test(struct timespec *diffTime)
+void write_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 
@@ -746,9 +812,11 @@ void write_test(struct timespec *diffTime)
 	if (fd < 0)
 		printf("invalid fd in write: %d\n", fd);
 
+	PERF_BEGIN("write", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	syscall(SYS_write, fd, buf, file_size);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
+	PERF_END(iter);
 
 	close(fd);
 
@@ -757,7 +825,7 @@ void write_test(struct timespec *diffTime)
 	return;
 }
 
-void mmap_test(struct timespec *diffTime)
+void mmap_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 
@@ -765,18 +833,20 @@ void mmap_test(struct timespec *diffTime)
 	if (fd < 0)
 		printf("invalid fd%d\n", fd);
 
+	PERF_BEGIN("mmap", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_READ,
 				     MAP_PRIVATE, fd, 0);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 
 	syscall(SYS_munmap, addr, file_size);
+	PERF_END(iter);
 	close(fd);
 	add_diff_to_sum(diffTime, endTime, startTime);
 	return;
 }
 
-void page_fault_test(struct timespec *diffTime)
+void page_fault_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 
@@ -798,7 +868,7 @@ void page_fault_test(struct timespec *diffTime)
 	return;
 }
 
-void cpu_test(struct timespec *diffTime)
+void cpu_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 
@@ -814,7 +884,7 @@ void cpu_test(struct timespec *diffTime)
 	return;
 }
 
-void ref_test(struct timespec *diffTime)
+void ref_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 
@@ -825,28 +895,33 @@ void ref_test(struct timespec *diffTime)
 	return;
 }
 
-void munmap_test(struct timespec *diffTime)
+void munmap_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 
 	int fd = open("test_file.txt", O_RDWR);
 	if (fd < 0)
 		printf("invalid fd%d\n", fd);
-	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE,
+
+	PERF_BEGIN("munmap", iter);
+	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE | PROT_READ,
 				     MAP_PRIVATE, fd, 0);
 	for (int i = 0; i < file_size; i++) {
 		((char *)addr)[i] = 'b';
 	}
+
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	syscall(SYS_munmap, addr, file_size);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
+	PERF_END(iter);
+
 	close(fd);
 	add_diff_to_sum(diffTime, endTime, startTime);
 	return;
 }
 
 int fd_count = -1;
-void select_test(struct timespec *diffTime)
+void select_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 	fd_set rfds;
@@ -871,9 +946,12 @@ void select_test(struct timespec *diffTime)
 		fds[i] = fd;
 	}
 
+	PERF_BEGIN("select", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	retval = syscall(SYS_select, maxFd + 1, &rfds, NULL, NULL, &tv);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
+	PERF_END(iter);
+
 	add_diff_to_sum(diffTime, endTime, startTime);
 
 	if (retval != fd_count) {
@@ -889,7 +967,7 @@ void select_test(struct timespec *diffTime)
 	return;
 }
 
-void poll_test(struct timespec *diffTime)
+void poll_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 	int retval;
@@ -922,9 +1000,11 @@ void poll_test(struct timespec *diffTime)
 		fds[i] = fd;
 	}
 
+	PERF_BEGIN("poll", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	retval = syscall(SYS_poll, pfds, fd_count, 0);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
+	PERF_END(iter);
 	add_diff_to_sum(diffTime, endTime, startTime);
 
 	if (retval != fd_count) {
@@ -940,7 +1020,7 @@ void poll_test(struct timespec *diffTime)
 	return;
 }
 
-void epoll_test(struct timespec *diffTime)
+void epoll_test(struct timespec *diffTime, int iter)
 {
 	struct timespec startTime, endTime;
 	int retval;
@@ -981,9 +1061,11 @@ void epoll_test(struct timespec *diffTime)
 
 	struct epoll_event *events = (struct epoll_event *)malloc(
 		fd_count * sizeof(struct epoll_event));
+	PERF_BEGIN("epoll_wait", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	retval = epoll_wait(epfd, events, fd_count, 0);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
+	PERF_END(iter);
 	add_diff_to_sum(diffTime, endTime, startTime);
 
 	free(events);
@@ -1003,7 +1085,7 @@ void epoll_test(struct timespec *diffTime)
 	return;
 }
 
-void context_switch_test(struct timespec *diffTime)
+void context_switch_test(struct timespec *diffTime, int iter2)
 {
 	int iter = 1000;
 	struct timespec startTime, endTime;

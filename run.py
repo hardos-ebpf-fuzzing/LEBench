@@ -16,8 +16,8 @@ WORKING_DIR      = ''
 KERN_INDEX_FILE  = '/iteration' 
 LOCAL_GRUB_FILE  = '/grub'
 KERN_LIST_FILE   = '/kern_list' 
-RESULT_DIR       = '/home/mvle/git/github.com/LEBench/RESULT_DIR/'
-TEST_DIR         = '/home/mvle/git/github.com/LEBench/TEST_DIR/'
+RESULT_DIR       = './RESULT_DIR/'
+TEST_DIR         = './TEST_DIR/'
 TEST_NAME        = 'OS_Eval'
 
 
@@ -30,7 +30,7 @@ def get_kern_list(idx):
         if -1 < idx < len(lines):
             return lines[idx].strip()
         elif idx >= len(lines):
-            print '[INFO] LEBench run concluded, finished testing on ' + str(len(lines)) + ' kernels.'
+            print('[INFO] LEBench run concluded, finished testing on ' + str(len(lines)) + ' kernels.')
             os.remove(KERN_INDEX_FILE)
             sys.exit(0)
         else:
@@ -41,8 +41,8 @@ def get_kern_list(idx):
 """ Modifies the grub file to boot into the target kernel the next time.
 """
 def generate_grub_file(f, target_kern):
-    if DEBUG: print '[DEBUG]    Preparing grub for kernel: ' + target_kern 
-    if DEBUG: print '[DEBUG]--------------------------------------------------'
+    if DEBUG: print('[DEBUG]    Preparing grub for kernel: ' + target_kern) 
+    if DEBUG: print('[DEBUG]--------------------------------------------------')
 
     if not os.path.exists(f):
         raise ValueError("File %s does not exist." % f)
@@ -51,7 +51,7 @@ def generate_grub_file(f, target_kern):
     if not os.path.exists(os.path.join('/', 'boot', kern_image_name)):
         raise ValueError('Kernel image %s does not exist' % kern_image_name)
 
-    print '[INFO] Setting boot version to ' +  target_kern + '.'
+    print('[INFO] Setting boot version to ' +  target_kern + '.')
     with open(f, 'r') as fp:
         lines = fp.readlines()
 
@@ -68,15 +68,15 @@ def generate_grub_file(f, target_kern):
 """Sets up grub using configtured grub file and shell cmds
 """
 def install_grub_file():
-    if DEBUG: print "[DEBUG] Copying GRUB config to %s" % GRUB_FILE
+    if DEBUG: print("[DEBUG] Copying GRUB config to %s" % GRUB_FILE)
     call(['sudo', 'cp', LOCAL_GRUB_FILE, GRUB_FILE])
-    if DEBUG: print "[DEBUG] Configuring boot"
+    if DEBUG: print("[DEBUG] Configuring boot")
     call(['sudo', 'grub-install', '--force', '--target=i386-pc', '/dev/sda1'])
-    if DEBUG: print "[DEBUG] Making grub config"
+    if DEBUG: print("[DEBUG] Making grub config")
     call(['sudo', 'grub-mkconfig', '-o', GRUB_CFG_FILE])
 
 def restart():
-    print '[INFO] Restarting the machine now.'
+    print('[INFO] Restarting the machine now.')
     call(['sudo', 'reboot'])
 
 
@@ -84,17 +84,17 @@ def restart():
 """
 def run_bench():
 
-    print '[INFO] --------------------------------------------------'
-    print '[INFO]              Starting LEBench tests'
-    print '[INFO]              Current time: ' + str(datetime.now().time())
+    print('[INFO] --------------------------------------------------')
+    print('[INFO]              Starting LEBench tests')
+    print('[INFO]              Current time: ' + str(datetime.now().time()))
 
     kern_version = platform.uname()[2]
-    print '[INFO] current kernel version: ' + kern_version + '.'
+    print('[INFO] current kernel version: ' + kern_version + '.')
 
     test_file = join(TEST_DIR, TEST_NAME)
-    print '[INFO] Preparing to run test ' + TEST_NAME + '.'
+    print('[INFO] Preparing to run test ' + TEST_NAME + '.')
 
-    print '[INFO] Compiling test ' + TEST_NAME + ".c."
+    print('[INFO] Compiling test ' + TEST_NAME + ".c.")
     call(('make -C ' + TEST_DIR).split())
 
 
@@ -105,20 +105,22 @@ def run_bench():
     result_filename = join(RESULT_DIR, kern_version, TEST_NAME)
     result_error_filename = join(RESULT_DIR, kern_version, TEST_NAME + '_err')
 
+    os.environ['LEBENCH_DIR'] = os.getcwd()
+
     result_fp = open(result_filename, 'w+')
     result_error_fp = open(result_error_filename, 'w+')
-    test_cmd = [TEST_DIR + TEST_NAME, '0', kern_version]
-    print '[INFO] Running test with command: ' + ' '.join(test_cmd)
+    test_cmd = ["taskset", "-c", "0-2", TEST_DIR + TEST_NAME, '0', kern_version]
+    print('[INFO] Running test with command: ' + ' '.join(test_cmd))
     ret = call(test_cmd, stdout=result_fp, stderr=result_error_fp)
 
-    print '[INFO]              Finished running test ' + TEST_NAME + \
-            ', test returned ' + str(ret) + ', log written to: ' + result_path + "."
-    print '[INFO]              Current time: ' + str(datetime.now().time())
+    print('[INFO]              Finished running test ' + TEST_NAME + \
+            ', test returned ' + str(ret) + ', log written to: ' + result_path + ".")
+    print('[INFO]              Current time: ' + str(datetime.now().time()))
     with open(result_error_filename, 'r') as fp:
         lines = fp.readlines()
         if len(lines) > 0:
             for line in lines:
-                print line
+                print(line)
             raise Exception('[FATAL] test run encountered error.')
 
 
