@@ -836,7 +836,7 @@ void mmap_test(struct timespec *diffTime, int iter)
 	PERF_BEGIN("mmap", iter);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_READ,
-				     MAP_PRIVATE, fd, 0);
+				     MAP_PRIVATE, fd, 0L);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 
 	syscall(SYS_munmap, addr, file_size);
@@ -855,7 +855,7 @@ void page_fault_test(struct timespec *diffTime, int iter)
 		printf("invalid fd%d\n", fd);
 
 	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_READ,
-				     MAP_PRIVATE, fd, 0);
+				     MAP_PRIVATE, fd, 0L);
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	char a = *((char *)addr);
@@ -905,7 +905,7 @@ void munmap_test(struct timespec *diffTime, int iter)
 
 	PERF_BEGIN("munmap", iter);
 	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE | PROT_READ,
-				     MAP_PRIVATE, fd, 0);
+				     MAP_PRIVATE, fd, 0L);
 	for (int i = 0; i < file_size; i++) {
 		((char *)addr)[i] = 'b';
 	}
