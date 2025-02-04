@@ -1,10 +1,10 @@
 CC=gcc
-libs=-pthread -O0
+libs=-pthread -O0 -fPIE
 
 .PHONY: clean
 
 OS_Eval: OS_Eval.c
-	$(CC) -o $@ $(libs) $< -lm
+	$(CC) -o $@ $(libs) $< -lm -Wl,-z relro -Wl,-z now -Wl,--as-needed
 
 clean:
 	rm OS_Eval
