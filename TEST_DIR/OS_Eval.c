@@ -73,15 +73,16 @@ char *new_output_fn = NULL;
 
 #define PAGE_SIZE 4096
 
-#define PERF_BEGIN(syscall_str, iter)	{\
-	int perf_pid = -1;\
-	if (iter == PERF_ITER)\
-		perf_pid = perf_begin(syscall_str);
+#define PERF_BEGIN(syscall_str, iter)  \
+	{                              \
+		int perf_pid = -1;     \
+		if (iter == PERF_ITER) \
+			perf_pid = perf_begin(syscall_str);
 
-#define PERF_END(iter)\
-	if (iter == PERF_ITER) \
-		perf_end(perf_pid);\
-}
+#define PERF_END(iter)              \
+	if (iter == PERF_ITER)      \
+		perf_end(perf_pid); \
+	}
 
 /* 
  * Currently unsupported tests:
@@ -91,23 +92,24 @@ char *new_output_fn = NULL;
 
 static int perf_begin(const char *syscall_str)
 {
-
 	int pid = getpid();
 	int child = fork();
 	static unsigned long static_cnt = 0;
 	unsigned long cnt = static_cnt++;
 	if (child < 0)
-		asm volatile ("ud2");
+		asm volatile("ud2");
 	if (child == 0) {
 		int perf_fd;
 		char pid_str[32] = { 0 };
 		char func[64] = { 0 };
 		char perf_file[64] = { 0 };
-		char *args[] = {"taskset", "-c", "3", "perf", "ftrace", "trace", "-G",
-			func, "-p", pid_str, NULL};
+		char *args[] = { "taskset", "-c",    "3",  "perf",
+				 "ftrace",  "trace", "-G", func,
+				 "-p",	    pid_str, NULL };
 
 		snprintf(pid_str, sizeof(pid_str), "%d", pid);
-		snprintf(perf_file, sizeof(perf_file), "./perf-%lu-%s.txt", cnt, syscall_str);
+		snprintf(perf_file, sizeof(perf_file), "./perf-%lu-%s.txt", cnt,
+			 syscall_str);
 		snprintf(func, sizeof(func), "__x64_sys_%s", syscall_str);
 
 		perf_fd = open(perf_file, O_WRONLY | O_CREAT);
@@ -904,7 +906,7 @@ void munmap_test(struct timespec *diffTime, int iter)
 		printf("invalid fd%d\n", fd);
 
 	PERF_BEGIN("munmap", iter);
-	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE | PROT_READ,
+	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE,
 				     MAP_PRIVATE, fd, 0L);
 	for (int i = 0; i < file_size; i++) {
 		((char *)addr)[i] = 'b';
@@ -1474,7 +1476,7 @@ int main(int argc, char *argv[])
 	/*               GETPID                  */
 	/*****************************************/
 
-	sleep(60);
+	/* sleep(60); */
 	info.iter = BASE_ITER * 100;
 	info.name = "ref";
 	one_line_test(fp, copy, ref_test, &info);
