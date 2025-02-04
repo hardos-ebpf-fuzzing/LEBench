@@ -533,7 +533,7 @@ void one_line_test_v2(FILE *fp, FILE *copy,
 }
 
 void two_line_test(FILE *fp, FILE *copy,
-		   void (*f)(struct timespec *, struct timespec *),
+		   void (*f)(struct timespec *, struct timespec *, int),
 		   testInfo *info)
 {
 	struct timespec testStart, testEnd;
@@ -551,7 +551,7 @@ void two_line_test(FILE *fp, FILE *copy,
 		timeArrayParent[i].tv_nsec = 0;
 		timeArrayChild[i].tv_sec = 0;
 		timeArrayChild[i].tv_nsec = 0;
-		(*f)(&timeArrayChild[i], &timeArrayParent[i]);
+		(*f)(&timeArrayChild[i], &timeArrayParent[i], i);
 	}
 
 	struct timespec *sumParent = calc_sum2(timeArrayParent, runs);
@@ -703,13 +703,18 @@ void two_line_test(FILE *fp, FILE *copy,
 	return;
 }
 
-void forkTest(struct timespec *childTime, struct timespec *parentTime)
+void forkTest(struct timespec *childTime, struct timespec *parentTime, int iter)
 {
 	struct timespec timeA;
 	struct timespec timeC;
 	timeB = mmap(NULL, sizeof(struct timespec), PROT_READ | PROT_WRITE,
 		     MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	int status;
+
+	int perf_pid = -1;
+	if (iter == PERF_ITER)
+		perf_pid = perf_begin("clone");
+
 	clock_gettime(CLOCK_MONOTONIC, &timeA);
 
 	int forkId = fork();
@@ -720,6 +725,10 @@ void forkTest(struct timespec *childTime, struct timespec *parentTime)
 		return;
 	} else if (forkId > 0) {
 		clock_gettime(CLOCK_MONOTONIC, &timeC);
+
+		if (iter == PERF_ITER)
+			perf_end(perf_pid);
+
 		wait(&status);
 		add_diff_to_sum(childTime, *timeB, timeA);
 		add_diff_to_sum(parentTime, timeC, timeA);
@@ -736,15 +745,18 @@ void *thrdfnc(void *args)
 	pthread_exit(NULL);
 }
 
-void threadTest(struct timespec *childTime, struct timespec *parentTime)
+void threadTest(struct timespec *childTime, struct timespec *parentTime,
+		int iter)
 {
 	struct timespec timeC;
 	timeB = (struct timespec *)malloc(sizeof(struct timespec));
 	timeD = (struct timespec *)malloc(sizeof(struct timespec));
 	pthread_t newThrd;
+	PERF_BEGIN("clone3", iter);
 	clock_gettime(CLOCK_MONOTONIC, timeD);
 	int er = pthread_create(&newThrd, NULL, thrdfnc, NULL);
 	clock_gettime(CLOCK_MONOTONIC, &timeC);
+	PERF_END(iter);
 	pthread_join(newThrd, NULL);
 
 	add_diff_to_sum(parentTime, timeC, *timeD);
