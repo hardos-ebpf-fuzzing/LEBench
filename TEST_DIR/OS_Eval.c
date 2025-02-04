@@ -92,10 +92,11 @@ char *new_output_fn = NULL;
 
 static int perf_begin(const char *syscall_str)
 {
-	int pid = getpid();
-	int child = fork();
 	static unsigned long static_cnt = 0;
 	unsigned long cnt = static_cnt++;
+	int pid = getpid();
+	int child = fork();
+
 	if (child < 0)
 		asm volatile("ud2");
 	if (child == 0) {
@@ -103,27 +104,43 @@ static int perf_begin(const char *syscall_str)
 		char pid_str[32] = { 0 };
 		char func[64] = { 0 };
 		char perf_file[64] = { 0 };
-		char *args[] = { "taskset", "-c",    "3",  "perf",
-				 "ftrace",  "trace", "-G", func,
-				 "-p",	    pid_str, NULL };
+		char *args1[] = { "taskset", "-c",    "3",  "perf",
+				  "ftrace",  "trace", "-G", func,
+				  "-p",	     pid_str, NULL };
+		char *args2[] = { "taskset", "-c",
+				  "3",	     "perf",
+				  "ftrace",  "trace",
+				  "-G",	     "__x64_sys_read",
+				  "-G",	     "__x64_sys_write",
+				  "-p",	     pid_str,
+				  NULL };
+		char **args = NULL;
 
 		snprintf(pid_str, sizeof(pid_str), "%d", pid);
-		snprintf(perf_file, sizeof(perf_file), "./perf-%lu-%s.txt", cnt,
-			 syscall_str);
-		snprintf(func, sizeof(func), "__x64_sys_%s", syscall_str);
+		snprintf(perf_file, sizeof(perf_file), "./perf-%d-%lu-%s.txt",
+			 pid, cnt, syscall_str);
+
+		if (!strncmp(syscall_str, "context_switch",
+			     sizeof("context_switch"))) {
+			args = args2;
+		} else {
+			snprintf(func, sizeof(func), "__x64_sys_%s",
+				 syscall_str);
+			args = args1;
+		}
 
 		perf_fd = open(perf_file, O_WRONLY | O_CREAT);
 		if (perf_fd < 0) {
 			perror("open");
-			kill(0, SIGILL);
+			exit(1);
 		}
 		if (dup2(perf_fd, 1) < 0) {
 			perror("dup2");
-			kill(0, SIGILL);
+			exit(1);
 		}
 
 		execvp(args[0], args);
-		kill(0, SIGILL);
+		exit(1);
 	}
 
 	sleep(5);
@@ -1133,8 +1150,15 @@ void context_switch_test(struct timespec *diffTime, int iter2)
 
 		clock_gettime(CLOCK_MONOTONIC, &startTime);
 		for (int i = 0; i < iter; i++) {
-			write(fds1[1], &w, 1);
-			read(fds2[0], &r, 1);
+			if (i == 500) {
+				PERF_BEGIN("context_switch", iter2);
+				write(fds1[1], &w, 1);
+				read(fds2[0], &r, 1);
+				PERF_END(iter2);
+			} else {
+				write(fds1[1], &w, 1);
+				read(fds2[0], &r, 1);
+			}
 		}
 		clock_gettime(CLOCK_MONOTONIC, &endTime);
 		int status;
