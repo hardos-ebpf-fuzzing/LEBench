@@ -1303,10 +1303,12 @@ void send_test(struct timespec *timeArray, int iter, int *i)
 
 		retval = send(fd_client, buf, msg_size, MSG_DONTWAIT);
 		for (int j = 0; *i < iter & j < curr_iter_limit; (*i)++, j++) {
+			PERF_BEGIN("sendto", (*i));
 			clock_gettime(CLOCK_MONOTONIC, &startTime);
 			retval = syscall(SYS_sendto, fd_client, buf, msg_size,
 					 MSG_DONTWAIT, NULL, 0);
 			clock_gettime(CLOCK_MONOTONIC, &endTime);
+			PERF_END((*i));
 			add_diff_to_sum(&timeArray[*i], endTime, startTime);
 
 			if (retval == -1) {
@@ -1384,10 +1386,12 @@ void recv_test(struct timespec *timeArray, int iter, int *i)
 		struct timespec startTime, endTime;
 		retval = recv(fd_connect, buf, msg_size, MSG_DONTWAIT);
 		for (int j = 0; *i < iter & j < curr_iter_limit; (*i)++, j++) {
+			PERF_BEGIN("recvfrom", (*i));
 			clock_gettime(CLOCK_MONOTONIC, &startTime);
 			retval = syscall(SYS_recvfrom, fd_connect, buf,
 					 msg_size, MSG_DONTWAIT, NULL, NULL);
 			clock_gettime(CLOCK_MONOTONIC, &endTime);
+			PERF_END((*i))
 
 			add_diff_to_sum(&timeArray[*i], endTime, startTime);
 
@@ -1535,8 +1539,8 @@ int main(int argc, char *argv[])
 	info.name = "recv";
 	one_line_test_v2(fp, copy, recv_test, &info);
 
-	msg_size =
-		96000; // This size 96000 would cause blocking on older kernels!
+	// This size 96000 would cause blocking on older kernels!
+	msg_size = 96000;
 	curr_iter_limit = 1;
 	printf("msg size: %d.\n", msg_size);
 	printf("curr iter limit: %d.\n", curr_iter_limit);
