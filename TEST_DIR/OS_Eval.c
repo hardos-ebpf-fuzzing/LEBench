@@ -308,56 +308,57 @@ void to_file(struct timespec *timeArray, int size, const char *name)
 #define K 5
 struct timespec *calc_k_closest(struct timespec *timeArray, int size)
 {
-	if (DEBUG)
-		printf("in calc_k_closest\n");
+	/* if (DEBUG) */
+	/* 	printf("in calc_k_closest\n"); */
 	qsort(timeArray, size, sizeof(struct timespec), comp);
-	struct timespec **k_closest =
-		(struct timespec **)malloc(sizeof(struct timespec *) * K);
-	for (int ii = 0; ii < K; ii++)
-		k_closest[ii] = NULL;
-	struct timespec *prev = &timeArray[0];
-	int j = 0;
-	k_closest[j] = prev;
-	j++;
-	for (int i = 1; i < size; i++) {
-		struct timespec *curr = &timeArray[i];
-		if (DEBUG)
-			printf("curr %ld.%09ld\n", curr->tv_sec, curr->tv_nsec);
-		if (curr->tv_sec != 0 || prev->tv_sec != 0) {
-			if (DEBUG)
-				printf("[warn] test run greater than 1 second: ");
-			if (DEBUG)
-				printf("prev %ld.%09ld, ", prev->tv_sec,
-				       prev->tv_nsec);
-			if (DEBUG)
-				printf("curr %ld.%09ld\n", curr->tv_sec,
-				       curr->tv_nsec);
-			j = 0;
-		} else {
-			double diff = curr->tv_nsec - prev->tv_nsec;
-			double ratioDiff = diff / (double)prev->tv_nsec;
-			if (DEBUG)
-				printf("diff: %lf\n", ratioDiff);
-			if (ratioDiff > INPRECISION) {
-				j = 0;
-				for (int ii = 0; ii < K; ii++)
-					k_closest[ii] = NULL;
-			} else {
-				k_closest[j] = curr;
-				j++;
-			}
-		}
-		if (j == K)
-			break;
-		prev = curr;
-	}
-	if (DEBUG && j != K)
-		printf("only found the %d closest\n", j);
-	struct timespec *result = k_closest[0];
-	if (DEBUG)
-		printf("result %ld.%09ld\n", result->tv_sec, result->tv_nsec);
-	free(k_closest);
-	return result;
+	return &timeArray[0];
+	/* struct timespec **k_closest = */
+	/* 	(struct timespec **)malloc(sizeof(struct timespec *) * K); */
+	/* for (int ii = 0; ii < K; ii++) */
+	/* 	k_closest[ii] = NULL; */
+	/* struct timespec *prev = &timeArray[0]; */
+	/* int j = 0; */
+	/* k_closest[j] = prev; */
+	/* j++; */
+	/* for (int i = 1; i < size; i++) { */
+	/* 	struct timespec *curr = &timeArray[i]; */
+	/* 	if (DEBUG) */
+	/* 		printf("curr %ld.%09ld\n", curr->tv_sec, curr->tv_nsec); */
+	/* 	if (curr->tv_sec != 0 || prev->tv_sec != 0) { */
+	/* 		if (DEBUG) */
+	/* 			printf("[warn] test run greater than 1 second: "); */
+	/* 		if (DEBUG) */
+	/* 			printf("prev %ld.%09ld, ", prev->tv_sec, */
+	/* 			       prev->tv_nsec); */
+	/* 		if (DEBUG) */
+	/* 			printf("curr %ld.%09ld\n", curr->tv_sec, */
+	/* 			       curr->tv_nsec); */
+	/* 		j = 0; */
+	/* 	} else { */
+	/* 		double diff = curr->tv_nsec - prev->tv_nsec; */
+	/* 		double ratioDiff = diff / (double)prev->tv_nsec; */
+	/* 		if (DEBUG) */
+	/* 			printf("diff: %lf\n", ratioDiff); */
+	/* 		if (ratioDiff > INPRECISION) { */
+	/* 			j = 0; */
+	/* 			for (int ii = 0; ii < K; ii++) */
+	/* 				k_closest[ii] = NULL; */
+	/* 		} else { */
+	/* 			k_closest[j] = curr; */
+	/* 			j++; */
+	/* 		} */
+	/* 	} */
+	/* 	if (j == K) */
+	/* 		break; */
+	/* 	prev = curr; */
+	/* } */
+	/* if (DEBUG && j != K) */
+	/* 	printf("only found the %d closest\n", j); */
+	/* struct timespec *result = k_closest[0]; */
+	/* if (DEBUG) */
+	/* 	printf("result %ld.%09ld\n", result->tv_sec, result->tv_nsec); */
+	/* free(k_closest); */
+	/* return result; */
 }
 
 void one_line_test(FILE *fp, FILE *copy, void (*f)(struct timespec *, int),
