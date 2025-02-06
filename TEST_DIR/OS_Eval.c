@@ -149,8 +149,8 @@ static int perf_begin(const char *syscall_str)
 
 static void perf_end(int child)
 {
-	sleep(5);
-	kill(child, SIGTERM);
+	kill(child, SIGINT);
+	waitpid(child, NULL, 0);
 }
 
 void add_diff_to_sum(struct timespec *result, struct timespec a,
