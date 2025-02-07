@@ -16,8 +16,8 @@ WORKING_DIR      = ''
 KERN_INDEX_FILE  = '/iteration' 
 LOCAL_GRUB_FILE  = '/grub'
 KERN_LIST_FILE   = '/kern_list' 
-RESULT_DIR       = '/home/mvle/git/github.com/LEBench/RESULT_DIR/'
-TEST_DIR         = '/home/mvle/git/github.com/LEBench/TEST_DIR/'
+RESULT_DIR       = './RESULT_DIR/'
+TEST_DIR         = './TEST_DIR/'
 TEST_NAME        = 'OS_Eval'
 
 
