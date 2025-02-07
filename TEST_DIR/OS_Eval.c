@@ -726,13 +726,14 @@ int fd_count = -1;
 void select_test(struct timespec *diffTime) {
 	struct timespec startTime, endTime;
 	fd_set rfds;
-	struct timeval tv;
+	//struct timeval tv;
+	struct timespec tv;
 	int retval;
 
 	FD_ZERO(&rfds);
 
 	tv.tv_sec = 0;
-	tv.tv_usec = 0;
+	tv.tv_nsec = 0;
 
 	int fds[fd_count];
 	int maxFd = -1;
@@ -747,7 +748,8 @@ void select_test(struct timespec *diffTime) {
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	retval = syscall(SYS_select, maxFd + 1, &rfds, NULL, NULL, &tv);
+	//retval = syscall(SYS_select, maxFd + 1, &rfds, NULL, NULL, &tv);
+	retval = syscall(SYS_pselect6, maxFd + 1, &rfds, NULL, NULL, &tv, NULL);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 	add_diff_to_sum(diffTime, endTime, startTime);
 
@@ -794,7 +796,8 @@ void poll_test(struct timespec *diffTime) {
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	retval = syscall(SYS_poll, pfds, fd_count, 0);
+	//retval = syscall(SYS_poll, pfds, fd_count, 0);
+	retval = syscall(SYS_ppoll, pfds, fd_count, 0, NULL);
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 	add_diff_to_sum(diffTime, endTime, startTime);
 
