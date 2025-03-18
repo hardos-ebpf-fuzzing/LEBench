@@ -59,6 +59,8 @@ char *new_output_fn = NULL;
 #define NEW_OUTPUT_FN	OUTPUT_FILE_PATH "new_output_file.csv"
 #define DEBUG false
 #define BASE_ITER 10000
+#define MAX_ITER 150
+
 
 #define PAGE_SIZE 4096
 
@@ -551,11 +553,15 @@ void threadTest(struct timespec *childTime, struct timespec *parentTime)
 	struct timespec timeC;
 	timeB=(struct timespec *)malloc(sizeof(struct timespec));
 	timeD=(struct timespec *)malloc(sizeof(struct timespec));
-	pthread_t newThrd;
+	pthread_t newThrd[10];
 	clock_gettime(CLOCK_MONOTONIC,timeD);
-	int er = pthread_create (&newThrd, NULL, thrdfnc, NULL);
+	for (int i = 0; i < 10; i++) {
+	    int er = pthread_create (&newThrd[i], NULL, thrdfnc, NULL);
+	}
 	clock_gettime(CLOCK_MONOTONIC,&timeC);
-	pthread_join(newThrd,NULL);
+	for (int i = 0; i < 10; i++) {
+	    pthread_join(newThrd[i],NULL);
+	}
 
 	add_diff_to_sum(parentTime,timeC,*timeD);
 	add_diff_to_sum(childTime,*timeB,*timeD);
@@ -570,7 +576,9 @@ void threadTest(struct timespec *childTime, struct timespec *parentTime)
 void getpid_test(struct timespec *diffTime) {
 	struct timespec startTime, endTime;
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	syscall(SYS_getpid);
+	for (int i = 0; i < MAX_ITER; i++) {
+	    syscall(SYS_getpid);
+	}
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 	add_diff_to_sum(diffTime, endTime, startTime);
 	return;
@@ -585,7 +593,9 @@ void read_test(struct timespec *diffTime) {
 	int fd =open("test_file.txt", O_RDONLY);
 	if (fd < 0) printf("invalid fd in read: %d\n", fd);
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	syscall(SYS_read, fd, buf_in, file_size);
+	for (int z = 0; z < 100; z++) {
+	    syscall(SYS_read, fd, buf_in, file_size);
+	}
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 	close(fd);
 	
@@ -634,7 +644,9 @@ void write_test(struct timespec *diffTime) {
 	if (fd < 0) printf("invalid fd in write: %d\n", fd);
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	syscall(SYS_write, fd, buf, file_size);
+	for (int z = 0; z < 100; z++) {
+	    syscall(SYS_write, fd, buf, file_size);
+	}
 	clock_gettime(CLOCK_MONOTONIC,&endTime);
 	
 	close(fd);
@@ -651,11 +663,16 @@ void mmap_test(struct timespec *diffTime) {
 	int fd =open("test_file.txt", O_RDONLY);
 	if (fd < 0) printf("invalid fd%d\n", fd);
 
+	void *addr[100];
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	for (int z = 0; z < 100; z++) {
+	    addr[z] = (void *)syscall(SYS_mmap, NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	}
 	clock_gettime(CLOCK_MONOTONIC,&endTime);
 	
-	syscall(SYS_munmap, addr, file_size);
+	for (int z = 0; z < 100; z++) {
+	    syscall(SYS_munmap, addr[z], file_size);
+	}
         close(fd);
 	add_diff_to_sum(diffTime, endTime, startTime);
 	return;
@@ -667,14 +684,22 @@ void page_fault_test(struct timespec *diffTime) {
 	int fd =open("test_file.txt", O_RDONLY);
 	if (fd < 0) printf("invalid fd%d\n", fd);
 
-	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	void *addr[100];
+	for (int z = 0; z < 100; z++){
+            addr[z] = (void *)syscall(SYS_mmap, NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	}
 
+	char a;
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	char a = *((char *)addr);
+	for (int z = 0; z < 100; z++) {
+	    a = *((char *)addr[z]);
+	}
 	clock_gettime(CLOCK_MONOTONIC,&endTime);
 	
 	printf("read: %c\n", a);
-	syscall(SYS_munmap, addr, file_size);
+	for (int z = 0; z < 100; z++) {
+	    syscall(SYS_munmap, addr[z], file_size);
+	}
         close(fd);
 	add_diff_to_sum(diffTime, endTime, startTime);
 	return;
@@ -697,8 +722,13 @@ void cpu_test(struct timespec *diffTime) {
 
 void ref_test(struct timespec *diffTime) {
 	struct timespec startTime, endTime;
+	struct timespec startTime1, endTime1;
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
+	for (int i = 0; i < MAX_ITER; i++) {
+	    clock_gettime(CLOCK_MONOTONIC, &startTime1);
+            clock_gettime(CLOCK_MONOTONIC,&endTime1);
+	}
 	clock_gettime(CLOCK_MONOTONIC,&endTime);
 	
 	add_diff_to_sum(diffTime, endTime, startTime);
@@ -710,12 +740,17 @@ void munmap_test(struct timespec *diffTime) {
 
 	int fd =open("test_file.txt", O_RDWR);
 	if (fd < 0) printf("invalid fd%d\n", fd);
-	void *addr = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE, MAP_PRIVATE, fd, 0);
-	for (int i = 0; i < file_size; i++) {
-		((char *)addr)[i] = 'b';
+	void *addr[100];
+	for (int z = 0; z < 100; z++) {
+            addr[z] = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE, MAP_PRIVATE, fd, 0);
+	    for (int i = 0; i < file_size; i++) {
+		((char *)addr[z])[i] = 'b';
+	    }
 	}
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	syscall(SYS_munmap, addr, file_size);
+	for (int z = 0; z < 100; z++) {
+	    syscall(SYS_munmap, addr[z], file_size);
+	}
 	clock_gettime(CLOCK_MONOTONIC,&endTime);
 	close(fd);
 	add_diff_to_sum(diffTime, endTime, startTime);
@@ -749,7 +784,9 @@ void select_test(struct timespec *diffTime) {
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	//retval = syscall(SYS_select, maxFd + 1, &rfds, NULL, NULL, &tv);
-	retval = syscall(SYS_pselect6, maxFd + 1, &rfds, NULL, NULL, &tv, NULL);
+	for (int z = 0; z < 100; z++) {
+	    retval = syscall(SYS_pselect6, maxFd + 1, &rfds, NULL, NULL, &tv, NULL);
+	}
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 	add_diff_to_sum(diffTime, endTime, startTime);
 
@@ -797,7 +834,9 @@ void poll_test(struct timespec *diffTime) {
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	//retval = syscall(SYS_poll, pfds, fd_count, 0);
-	retval = syscall(SYS_ppoll, pfds, fd_count, 0, NULL);
+	for (int z = 0; z < 100; z++) {
+	    retval = syscall(SYS_ppoll, pfds, fd_count, 0, NULL);
+	}
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 	add_diff_to_sum(diffTime, endTime, startTime);
 
@@ -851,7 +890,9 @@ void epoll_test(struct timespec *diffTime) {
 
 	struct epoll_event *events = (struct epoll_event *)malloc(fd_count * sizeof(struct epoll_event));
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
-	retval = epoll_wait(epfd, events, fd_count, 0);
+	for (int z = 0; z < 100; z++) {
+	    retval = epoll_wait(epfd, events, fd_count, 0);
+	}
 	clock_gettime(CLOCK_MONOTONIC, &endTime);
 	add_diff_to_sum(diffTime, endTime, startTime);
 
@@ -906,8 +947,11 @@ void context_switch_test(struct timespec *diffTime) {
 
 		clock_gettime(CLOCK_MONOTONIC, &startTime);
 		for (int i = 0; i < iter; i++) {
-			write(fds1[1], &w, 1);		
+		    // Make each measurement to greater than 100us.
+		    for (int y = 0; y < 10; y++) {
+			write(fds1[1], &w, 1);
 			read(fds2[0], &r, 1); 
+		    }
 		}
 		clock_gettime(CLOCK_MONOTONIC, &endTime);
 		int status;
@@ -934,8 +978,11 @@ void context_switch_test(struct timespec *diffTime) {
 
 		write(fds2[1], &w, 1);		
 		for (int i = 0; i < iter; i++) {
-			read(fds1[0], &r, 1);		
-			write(fds2[1], &w, 1);		
+		    // Make each measurement to greater than 100us.
+		    for (int y = 0; y < 10; y++) {
+			read(fds1[0], &r, 1);
+			write(fds2[1], &w, 1);
+		    }
 		}
 			
         	kill(getpid(), SIGINT);
@@ -1005,7 +1052,9 @@ void send_test(struct timespec *timeArray, int iter, int *i) {
 					(socklen_t *)0);
 		if (DEBUG) printf("Connection accepted.\n");
 
-		read(fds2[0], &r, 1);
+		for (int z = 0; z < 100; z++) {
+		    read(fds2[0], &r, 1);
+		}
 
 		//remove(server_addr.sun_path);
 		close(fd_server);
@@ -1039,7 +1088,9 @@ void send_test(struct timespec *timeArray, int iter, int *i) {
 		for (int j = 0; *i < iter & j < curr_iter_limit; (*i) ++, j++) {	
 			
 			clock_gettime(CLOCK_MONOTONIC,&startTime);
-			retval = syscall(SYS_sendto, fd_client, buf, msg_size, MSG_DONTWAIT, NULL, 0);
+			for (int z = 0; z < 100; z++) {
+			    retval = syscall(SYS_sendto, fd_client, buf, msg_size, MSG_DONTWAIT, NULL, 0);
+			}
 			clock_gettime(CLOCK_MONOTONIC,&endTime);
 			add_diff_to_sum(&timeArray[*i], endTime, startTime);
 
@@ -1115,7 +1166,9 @@ void recv_test(struct timespec *timeArray, int iter, int *i) {
 		for (int j = 0; *i < iter & j < curr_iter_limit; (*i) ++, j++) {	
 			
 			clock_gettime(CLOCK_MONOTONIC,&startTime);
-			retval = syscall(SYS_recvfrom, fd_connect, buf, msg_size, MSG_DONTWAIT, NULL, NULL);
+			for (int z = 0; z < 100; z++) {
+			    retval = syscall(SYS_recvfrom, fd_connect, buf, msg_size, MSG_DONTWAIT, NULL, NULL);
+			}
 			clock_gettime(CLOCK_MONOTONIC,&endTime);
 
 			add_diff_to_sum(&timeArray[*i], endTime, startTime);
@@ -1154,7 +1207,9 @@ void recv_test(struct timespec *timeArray, int iter, int *i) {
 		
 		for (int j = 0; j < curr_iter_limit + 1; (*i) ++, j++) {	
 			
-			retval = syscall(SYS_sendto, fd_client, buf, msg_size, MSG_DONTWAIT, NULL, 0);
+			for (int z = 0; z < 100; z++) {
+			    retval = syscall(SYS_sendto, fd_client, buf, msg_size, MSG_DONTWAIT, NULL, 0);
+			}
 
 			if (retval == -1) {
 				printf("[error] failed to send.\n");
@@ -1230,7 +1285,7 @@ int main(int argc, char *argv[])
 	/*****************************************/
 
 	sleep(60);
-	info.iter = BASE_ITER * 100;
+	info.iter = BASE_ITER * 5;
 	info.name = "ref";
 	one_line_test(fp, copy, ref_test, &info);
 
@@ -1239,14 +1294,15 @@ int main(int argc, char *argv[])
 	one_line_test(fp, copy, cpu_test, &info);
 
 
-	info.iter = BASE_ITER * 100;
+	info.iter = BASE_ITER * 5;
 	info.name = "getpid";
 	one_line_test(fp, copy, getpid_test, &info);
 
 	/*****************************************/
 	/*            CONTEXT SWITCH             */
 	/*****************************************/
-	info.iter = BASE_ITER * 10;
+	//info.iter = BASE_ITER * 10;
+	info.iter = 200;
 	info.name = "context siwtch";
 	one_line_test(fp, copy, context_switch_test, &info);
 
