@@ -1443,11 +1443,12 @@ int main(int argc, char *argv[])
 	read_warmup();
 	one_line_test(fp, copy, read_test, &info);
 	
-	info.iter = BASE_ITER * 10;
+	info.iter = BASE_ITER;
 	info.name = "big mmap";
 	one_line_test(fp, copy, mmap_test, &info);
 	
-	info.iter = BASE_ITER / 4;
+	//info.iter = BASE_ITER / 4;
+	info.iter = 200;
 	info.name = "big munmap";
 	one_line_test(fp, copy, munmap_test, &info);
 	
@@ -1467,11 +1468,12 @@ int main(int argc, char *argv[])
 	info.name = "huge read";
 	one_line_test(fp, copy, read_test, &info);
 	
-	info.iter = BASE_ITER * 10;
+	info.iter = BASE_ITER;
 	info.name = "huge mmap";
 	one_line_test(fp, copy, mmap_test, &info);
 	
-	info.iter = BASE_ITER / 4; 
+	//info.iter = BASE_ITER / 4;
+	info.iter = 200;
 	info.name = "huge munmap";
 	one_line_test(fp, copy, munmap_test, &info);
 
