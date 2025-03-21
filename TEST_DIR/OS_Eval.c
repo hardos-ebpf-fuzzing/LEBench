@@ -612,7 +612,7 @@ void read_warmup() {
 		buf_out[i] = 'a';
 	}
 
-	int fd = open("test_file.txt", O_CREAT | O_WRONLY);
+	int fd = open("test_file.txt", O_CREAT|O_RDWR, S_IRWXU);
 	if (fd < 0) printf("invalid fd in write: %d\n", fd);
 
 	syscall(SYS_write, fd, buf_out, file_size);
@@ -640,7 +640,7 @@ void write_test(struct timespec *diffTime) {
 	for (int i = 0; i < file_size; i++) {
 		buf[i] = 'a';
 	}
-	int fd = open("test_file.txt", O_CREAT | O_WRONLY);
+	int fd = open("test_file.txt", O_CREAT|O_RDWR, S_IRWXU);
 	if (fd < 0) printf("invalid fd in write: %d\n", fd);
 
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
@@ -740,12 +740,17 @@ void munmap_test(struct timespec *diffTime) {
 
 	int fd =open("test_file.txt", O_RDWR);
 	if (fd < 0) printf("invalid fd%d\n", fd);
+        char *data = malloc(file_size);
+        for (int i = 0; i < file_size; i++) {
+	    data[i] = 'b';
+        }
 	void *addr[100];
 	for (int z = 0; z < 100; z++) {
             addr[z] = (void *)syscall(SYS_mmap, NULL, file_size, PROT_WRITE, MAP_PRIVATE, fd, 0);
-	    for (int i = 0; i < file_size; i++) {
-		((char *)addr[z])[i] = 'b';
-	    }
+	    //for (int i = 0; i < file_size; i++) {
+	        //((char *)addr[z])[i] = 'b';
+	    //}
+            memcpy(addr[z], (void*)data, file_size);
 	}
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
 	for (int z = 0; z < 100; z++) {
@@ -753,6 +758,7 @@ void munmap_test(struct timespec *diffTime) {
 	}
 	clock_gettime(CLOCK_MONOTONIC,&endTime);
 	close(fd);
+        free(data);
 	add_diff_to_sum(diffTime, endTime, startTime);
 	return;
 }
@@ -1397,7 +1403,7 @@ int main(int argc, char *argv[])
 	info.name = "small mmap";
 	one_line_test(fp, copy, mmap_test, &info);
 	
-	info.iter = BASE_ITER * 10;
+	info.iter = BASE_ITER;
 	info.name = "small munmap";
 	one_line_test(fp, copy, munmap_test, &info);
 
@@ -1422,7 +1428,8 @@ int main(int argc, char *argv[])
 	info.name = "mid mmap";
 	one_line_test(fp, copy, mmap_test, &info);
 	
-	info.iter = BASE_ITER * 10;
+	//info.iter = BASE_ITER * 10;
+	info.iter = 400;
 	info.name = "mid munmap";
 	one_line_test(fp, copy, munmap_test, &info);
 
@@ -1434,11 +1441,13 @@ int main(int argc, char *argv[])
 	file_size = PAGE_SIZE * 1000;	
 	printf("file size: %d.\n", file_size);
 
-	info.iter = BASE_ITER / 2;
+	//info.iter = BASE_ITER / 2;
+	info.iter = 200;
 	info.name = "big write";
 	one_line_test(fp, copy, write_test, &info);
 	
-	info.iter = BASE_ITER;
+	//info.iter = BASE_ITER;
+	info.iter = 200;
 	info.name = "big read";
 	read_warmup();
 	one_line_test(fp, copy, read_test, &info);
@@ -1452,7 +1461,7 @@ int main(int argc, char *argv[])
 	info.name = "big munmap";
 	one_line_test(fp, copy, munmap_test, &info);
 	
-	info.iter = BASE_ITER * 5;
+	info.iter = BASE_ITER;
 	info.name = "big page fault";
 	one_line_test(fp, copy, page_fault_test, &info);
 
@@ -1460,11 +1469,11 @@ int main(int argc, char *argv[])
 	file_size = PAGE_SIZE * 10000;	
 	printf("file size: %d.\n", file_size);
 
-	info.iter = BASE_ITER / 4;
+	info.iter = 20;
 	info.name = "huge write";
 	one_line_test(fp, copy, write_test, &info);
 
-	info.iter = BASE_ITER;
+	info.iter = 40;
 	info.name = "huge read";
 	one_line_test(fp, copy, read_test, &info);
 	
@@ -1473,7 +1482,7 @@ int main(int argc, char *argv[])
 	one_line_test(fp, copy, mmap_test, &info);
 	
 	//info.iter = BASE_ITER / 4;
-	info.iter = 200;
+	info.iter = 100;
 	info.name = "huge munmap";
 	one_line_test(fp, copy, munmap_test, &info);
 
