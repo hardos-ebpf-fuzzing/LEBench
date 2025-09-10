@@ -7,7 +7,7 @@ versions = []
 with open('raw_kern', 'r') as fp:
     lines = fp.readlines()
     for l in lines:
-        if 'vmlinuz' in l:
+        if 'vmlinuz-' in l:
             full_name = l.strip('vmlinuz-').strip()
             #print full_name
             num_name = full_name.strip('-generic')
